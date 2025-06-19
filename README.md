@@ -31,9 +31,9 @@ git clone https://github.com/nyudji/fornecedor_carnes.git
 ### 2. Instale o PostgreSQL
 
 Certifique-se de ter o PostgreSQL instalado e rodando em sua máquina.  
-Crie um banco de dados chamado `fornecedor_carnes`:
+Crie um banco de dados chamado `fornecedor_carnes`
 
-```
+
 
 ### 3. Configure as variáveis de ambiente
 
