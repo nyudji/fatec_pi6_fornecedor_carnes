@@ -48,8 +48,8 @@ PASSWORD_BD=sua_senha_postgres
 
 ```bash
 python -m venv .venv
-
- 4.2 - Ative ambiente virtuasl (use o comando no mesmo local da pasta raiz)
+```
+ ### 4.2 - Ative ambiente virtuasl (use o comando no mesmo local da pasta raiz)
 ```bash
 .venv\Scripts\Activate.ps1
 ```
