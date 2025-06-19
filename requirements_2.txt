@@ -1,0 +1,9 @@
+pandas
+numpy
+faker
+sqlalchemy
+psycopg2-binary
+python-dotenv
+selenium
+streamlit
+plotly_express

@@ -1,0 +1,20 @@
+# Ignorar VENVs
+venv/
+.venv/
+
+# Ignorar arquivos de cache e metadados
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Ignorar logs e arquivos de banco de dados locais
+*.log
+*.db
+*.sqlite3
+
+# Ignorar arquivos específicos do IDE (ex: VS Code)
+.vscode/
+
+# Variáveis de ambiente (se você usa .env)
+.env
