@@ -1,14 +1,28 @@
 import streamlit as st
-import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
+import locale # Import the locale module
 
 def show():
-    # Importa a sua classe de conexão
     from driver.psycopg2_connect import PostgresConnect
 
     st.set_page_config(layout="wide", page_title="Dashboard de Vendas de Carnes")
+
+    # --- Set Locale for Brazilian Portuguese Number Formatting ---
+    try:
+        # For Linux/macOS
+        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+    except locale.Error:
+        try:
+            # For Windows
+            locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
+        except locale.Error:
+            st.warning("Could not set locale for Brazilian Portuguese. Number formatting may not be correct.")
+            # Fallback if locale setting fails, will use default formatting which might not be pt_BR
+            locale.setlocale(locale.LC_ALL, '') # Set to default locale, might be US style
+            st.info("Consider installing the 'pt_BR' locale on your system if formatting is incorrect.")
+
 
     # --- Função para Carregar Dados (com cache para performance) ---
     @st.cache_data(ttl=3600) # Armazena os dados em cache por 1 hora
@@ -38,7 +52,7 @@ def show():
         p.id_pedido,
         p.data_pedido,
         p.status AS status_pedido,
-        p.valor_total,
+        p.valor_total, -- This valor_total will be duplicated if a pedido has multiple items
         c.nome_cliente,
         c.tipo_cliente,
         ip.id_item_pedido,
@@ -116,7 +130,6 @@ def show():
     """
 
     # --- Carrega os DataFrames ---
-    st.header("Carregando Dados do Banco de Dados...")
 
     df_pedidos_detalhes = load_data_from_db(QUERY_PEDIDOS_DETALHES, "pedidos e itens")
     df_clientes = load_data_from_db(QUERY_CLIENTES, "clientes")
@@ -155,19 +168,26 @@ def show():
     st.subheader("📈 KPIs Gerais")
     col1, col2, col3, col4 = st.columns(4)
 
-    total_vendas = df_pedidos_detalhes['valor_total'].sum() if not df_pedidos_detalhes.empty else 0
+    # *** CRITICAL FIX FOR total_vendas ***
+    # Sum valor_total only from unique orders to avoid duplication from joins
+    if not df_pedidos_detalhes.empty:
+        unique_pedidos_for_total = df_pedidos_detalhes.drop_duplicates(subset=['id_pedido'])
+        total_vendas = unique_pedidos_for_total['valor_total'].sum()
+    else:
+        total_vendas = 0
+
     total_pedidos = df_pedidos_detalhes['id_pedido'].nunique() if not df_pedidos_detalhes.empty else 0
     media_valor_pedido = total_vendas / total_pedidos if total_pedidos > 0 else 0
     total_clientes = df_clientes['id_cliente'].nunique() if not df_clientes.empty else 0
 
     with col1:
-        st.metric("Total de Vendas", f"R$ {total_vendas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Total de Vendas", locale.currency(total_vendas, grouping=True, symbol='R$ '))
     with col2:
-        st.metric("Total de Pedidos", f"{total_pedidos:,}".replace(",", "."))
+        st.metric("Total de Pedidos", f"{total_pedidos:n}") # Use 'n' for locale-aware number formatting
     with col3:
-        st.metric("Ticket Médio por Pedido", f"R$ {media_valor_pedido:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.metric("Ticket Médio por Pedido", locale.currency(media_valor_pedido, grouping=True, symbol='R$ '))
     with col4:
-        st.metric("Total de Clientes", f"{total_clientes:,}".replace(",", "."))
+        st.metric("Total de Clientes", f"{total_clientes:n}") # Use 'n' for locale-aware number formatting
 
     st.markdown("---")
 
@@ -178,8 +198,19 @@ def show():
     col_vendas_data, col_pedidos_data = st.columns(2)
 
     if not df_pedidos_detalhes.empty:
-        # Agrupar vendas por data
-        vendas_por_data = df_pedidos_detalhes.groupby('data_pedido')['valor_total'].sum().reset_index()
+        # Agrupar vendas por data (using unique pedido totals if necessary for graph, or item totals)
+        # For temporal trends, summing item prices (ip.quantidade * ip.preco_unitario) is often preferred
+        # or ensuring the 'valor_total' from tb_pedido is used only once per date.
+        
+        # Option 1: Summing valor_total from unique pedidos for each date
+        vendas_por_data = df_pedidos_detalhes.drop_duplicates(subset=['id_pedido']).groupby('data_pedido')['valor_total'].sum().reset_index()
+        
+        # Option 2: (Alternative if valor_total in tb_pedido is sum of items):
+        # Calculate sales based on item prices if that's what you want to visualize daily details
+        # df_pedidos_detalhes['valor_item_calculado'] = df_pedidos_detalhes['quantidade'] * df_pedidos_detalhes['preco_unitario']
+        # vendas_por_data = df_pedidos_detalhes.groupby('data_pedido')['valor_item_calculado'].sum().reset_index()
+        # Rename 'valor_item_calculado' to 'valor_total' for plot if you use this alternative
+
         fig_vendas_data = px.line(vendas_por_data, x='data_pedido', y='valor_total', 
                                 title='Volume de Vendas Diárias', labels={'data_pedido': 'Data do Pedido', 'valor_total': 'Total de Vendas (R$)'})
         fig_vendas_data.update_xaxes(rangeselector_buttons=list([
@@ -192,7 +223,7 @@ def show():
         ]))
         
         # Agrupar número de pedidos por data
-        pedidos_por_data = df_pedidos_detalhes.groupby('data_pedido').size().reset_index(name='num_pedidos')
+        pedidos_por_data = df_pedidos_detalhes.groupby('data_pedido')['id_pedido'].nunique().reset_index(name='num_pedidos') # Count unique orders per day
         fig_pedidos_data = px.line(pedidos_por_data, x='data_pedido', y='num_pedidos', 
                                 title='Número de Pedidos Diários', labels={'data_pedido': 'Data do Pedido', 'num_pedidos': 'Número de Pedidos'})
         fig_pedidos_data.update_xaxes(rangeselector_buttons=list([
@@ -229,11 +260,14 @@ def show():
         with col_top_produtos:
             st.plotly_chart(fig_top_produtos_qtd, use_container_width=True)
 
-        # Distribuição de Vendas por Tipo de Corte
-        vendas_por_corte = df_pedidos_detalhes.groupby('tipo_corte')['valor_total'].sum().reset_index()
-        fig_vendas_por_corte = px.pie(vendas_por_corte, names='tipo_corte', values='valor_total',
+        # Distribuição de Vendas por Tipo de Corte (summing valor_total of items)
+        # For product analysis, sum of (quantidade * preco_unitario) is generally more accurate
+        df_pedidos_detalhes['valor_item_calculado'] = df_pedidos_detalhes['quantidade'] * df_pedidos_detalhes['preco_unitario']
+        vendas_por_corte = df_pedidos_detalhes.groupby('tipo_corte')['valor_item_calculado'].sum().reset_index()
+        fig_vendas_por_corte = px.pie(vendas_por_corte, names='tipo_corte', values='valor_item_calculado',
                                     title='Distribuição de Vendas por Tipo de Corte',
-                                    hole=0.3)
+                                    hole=0.3,
+                                    labels={'valor_item_calculado': 'Valor Total de Itens (R$)'}) # Clarify label
         with col_tipo_corte:
             st.plotly_chart(fig_vendas_por_corte, use_container_width=True)
     else:
@@ -256,8 +290,11 @@ def show():
             st.plotly_chart(fig_tipo_cliente, use_container_width=True)
 
     if not df_pedidos_detalhes.empty:
-        # Top N Clientes por Valor Total de Compras
-        top_clientes_valor = df_pedidos_detalhes.groupby('nome_cliente')['valor_total'].sum().nlargest(10).reset_index()
+        # Top N Clientes por Valor Total de Compras (using unique order totals for clients)
+        # This ensures each client's total is based on their unique order values
+        cliente_valor_total = df_pedidos_detalhes.drop_duplicates(subset=['id_pedido', 'nome_cliente']) # Ensure unique order per client
+        top_clientes_valor = cliente_valor_total.groupby('nome_cliente')['valor_total'].sum().nlargest(10).reset_index()
+        
         fig_top_clientes_valor = px.bar(top_clientes_valor, x='valor_total', y='nome_cliente',
                                     title='Top 10 Clientes por Valor de Compras',
                                     orientation='h',
@@ -274,8 +311,8 @@ def show():
     st.subheader("Status dos Pedidos")
 
     if not df_pedidos_detalhes.empty:
-        # Distribuição de Status de Pedido
-        status_counts = df_pedidos_detalhes['status_pedido'].value_counts().reset_index()
+        # Distribuição de Status de Pedido (count unique orders)
+        status_counts = df_pedidos_detalhes.drop_duplicates(subset=['id_pedido'])['status_pedido'].value_counts().reset_index()
         status_counts.columns = ['Status', 'Contagem']
         fig_status_pedido = px.pie(status_counts, names='Status', values='Contagem',
                                 title='Distribuição de Status dos Pedidos',
@@ -331,7 +368,7 @@ def show():
         # Quantidade de Estoque por Produto
         estoque_por_produto = df_estoque.groupby('nome_produto')['quantidade_disponivel'].sum().nlargest(10).reset_index()
         fig_estoque_produto = px.bar(estoque_por_produto, x='quantidade_disponivel', y='nome_produto',
-                                    title='Top 10 Produtos em Estoque (Quantidade)',
+                                    title='Produtos mais estocados',
                                     orientation='h',
                                     labels={'quantidade_disponivel': 'Quantidade Disponível', 'nome_produto': 'Produto'})
         fig_estoque_produto.update_layout(yaxis={'categoryorder':'total ascending'})
