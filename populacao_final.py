@@ -1,4 +1,3 @@
-import psycopg2
 import random
 from datetime import datetime, timedelta
 from faker import Faker
@@ -6,16 +5,27 @@ from psycopg2.extras import execute_values
 import unicodedata
 import time
 
+# --- IMPORTAÇÃO DA SUA CLASSE DE CONEXÃO ---
+from driver.psycopg2_connect import PostgresConnect 
+
 # --- CONFIGURAÇÃO DE CONEXÃO ---
-conn = psycopg2.connect(
-    dbname="fornecedor_carnes",
-    user="postgres",
-    password="123456",
-    host="localhost",
-    port="5432"
-)
-conn.autocommit = False
-cursor = conn.cursor()
+# Agora, instanciamos sua classe PostgresConnect
+# Passamos autocommit=False para gerenciar transações manualmente, como você já fazia.
+db_connection = PostgresConnect(autocommit=False) 
+
+# Verifica se a conexão foi bem-sucedida antes de prosseguir
+if db_connection.conn is None or db_connection.conn.closed:
+    print("Erro: Não foi possível estabelecer a conexão com o banco de dados. Saindo do script.")
+    exit() # Sai do script se a conexão falhou
+
+cursor = db_connection.get_cursor() # Obtém o cursor através do método da classe
+
+# Verifica se o cursor foi obtido com sucesso
+if cursor is None:
+    print("Erro: Não foi possível obter um cursor para o banco de dados. Saindo do script.")
+    db_connection.close_connection()
+    exit()
+
 fake = Faker("pt_BR")
 regioes_sp = ["São Paulo", "Guarulhos", "Osasco", "Barueri", "Santo André", "São Bernardo do Campo"]
 
@@ -23,7 +33,7 @@ BATCH_SIZE_CLIENTES = 1000
 BATCH_SIZE_ENTRADAS = 2000
 BATCH_SIZE_PRODUTO_ENTRADA = 5000
 BATCH_SIZE_ESTOQUE = 5000
-BATCH_SIZE_PEDIDOS = 500
+BATCH_SIZE_PEDIDOS = 500 # Mantido do original
 BATCH_SIZE_ITENS_PEDIDO = 10000 
 BATCH_SIZE_PAGAMENTOS = 10000
 
@@ -41,7 +51,7 @@ cursor.execute("""
     f"{fake.street_name()}, {fake.building_number()} - {random.choice(regioes_sp)}"
 ))
 id_fornecedor_fixo = cursor.fetchone()[0]
-conn.commit()
+db_connection.commit() # Usa o método de commit da sua classe
 print(f"Fornecedor fixo inserido com ID: {id_fornecedor_fixo}")
 
 # --- INSERIR PRODUTOS FIXOS ---
@@ -163,7 +173,7 @@ execute_values(cursor, """
     INSERT INTO tb_produto (nome_produto, tipo_corte, unidade_medida, preco_compra, preco_venda, id_fornecedor)
     VALUES %s
 """, produto_data_list)
-conn.commit()
+db_connection.commit() # Usa o método de commit da sua classe
 print(f"{len(produto_data_list)} produtos fixos inseridos.")
 
 # --- INSERIR CLIENTES ---
@@ -198,7 +208,7 @@ for i in range(0, len(clientes_gerados), BATCH_SIZE_CLIENTES):
         INSERT INTO tb_cliente (nome_cliente, cnpj_cliente, telefone_cliente, email_cliente, endereco_cliente, tipo_cliente)
         VALUES %s
     """, batch)
-    conn.commit()
+    db_connection.commit() # Usa o método de commit da sua classe
     print(f"  {len(batch)} clientes inseridos. Total: {i + len(batch)}/{num_clientes}")
 print(f"Total de {num_clientes} clientes inseridos.")
 
@@ -222,7 +232,7 @@ for i in range(0, len(entradas_data_list), BATCH_SIZE_ENTRADAS):
         RETURNING id_entrada, data_entrada
     """, batch)
     inserted_entrada_ids.extend(cursor.fetchall())
-    conn.commit()
+    db_connection.commit() # Usa o método de commit da sua classe
     print(f"  {len(batch)} entradas inseridas. Total: {i + len(batch)}/{num_entradas}")
 
 produtos_entrada_data_list = []
@@ -244,7 +254,7 @@ for i in range(0, len(produtos_entrada_data_list), BATCH_SIZE_PRODUTO_ENTRADA):
         RETURNING id_item_entrada, quantidade
     """, batch)
     itens_para_estoque_temp.extend(cursor.fetchall())
-    conn.commit()
+    db_connection.commit() # Usa o método de commit da sua classe
     print(f"  {len(batch)} produtos de entrada inseridos.")
 print(f"Total de {len(produtos_entrada_data_list)} produtos de entrada inseridos.")
 
@@ -261,7 +271,7 @@ for i in range(0, len(estoque_data_list), BATCH_SIZE_ESTOQUE):
         INSERT INTO tb_estoque (item_entrada, quantidade_disponivel, localizacao)
         VALUES %s
     """, batch)
-    conn.commit()
+    db_connection.commit() # Usa o método de commit da sua classe
     print(f"  {len(batch)} itens de estoque inseridos. Total: {i + len(batch)}/{len(estoque_data_list)}")
 print(f"Total de {len(estoque_data_list)} itens de estoque inseridos.")
 
@@ -288,8 +298,6 @@ if not estoque_disp:
 else:
     # Ajuste para garantir que temp_produtos_info esteja definida e contenha o id_produto, preco_venda.
     # Se estoque_disp não estiver vazio, podemos usar a mesma estrutura para temp_produtos_info, mas a partir dos produtos_info
-    temp_produtos_info = [(p_info[0], None, p_info[1]) for p_info in produtos_info] # (id_produto, None para nome, preco_compra)
-    # Melhor forma seria: (id_produto, nome_produto, preco_venda)
     cursor.execute("SELECT id_produto, nome_produto, preco_venda FROM tb_produto")
     temp_produtos_info = cursor.fetchall()
 
@@ -355,7 +363,7 @@ for day_offset in range(num_dias_simulacao):
         """, pedidos_batch_data)
         current_batch_pedido_ids = [r[0] for r in cursor.fetchall()]
         all_inserted_pedido_ids.extend(current_batch_pedido_ids)
-        conn.commit()
+        db_connection.commit() # Usa o método de commit da sua classe
 
         for idx, pid in enumerate(current_batch_pedido_ids):
             _, simulated_itens = current_batch_pedidos_simulados[idx]
@@ -369,7 +377,7 @@ for day_offset in range(num_dias_simulacao):
                     INSERT INTO tb_item_pedido (id_pedido, id_produto, quantidade, unidade_medida, preco_unitario)
                     VALUES %s
                 """, batch_itens)
-                conn.commit()
+                db_connection.commit() # Usa o método de commit da sua classe
 
 print(f"Total de {len(all_inserted_pedido_ids)} pedidos inseridos em {num_dias_simulacao} dias.")
 print(f"Total de {num_total_itens_gerados} itens de venda gerados em {num_dias_simulacao} dias.")
@@ -397,12 +405,11 @@ for i in range(0, len(pagamentos_data_list), BATCH_SIZE_PAGAMENTOS):
         INSERT INTO tb_pagamento (id_pedido, data_pagamento, lote_saida, valor_pago, metodo_pagamento, status)
         VALUES %s
     """, batch)
-    conn.commit()
+    db_connection.commit() # Usa o método de commit da sua classe
     print(f"  {len(batch)} pagamentos inseridos.")
 print(f"Total de {len(pagamentos_data_list)} pagamentos inseridos.")
 
 # --- FINALIZAÇÃO ---
-cursor.close()
-conn.close()
+db_connection.close_connection() # Fecha a conexão e o cursor associado
 end_time = time.time()
 print(f"\nPopulação completa de registros realizada com sucesso em {end_time - start_time:.2f} segundos.")
