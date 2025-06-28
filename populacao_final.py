@@ -278,7 +278,7 @@ print(f"Total de {len(estoque_data_list)} itens de estoque inseridos.")
 
 # --- PEDIDOS E ITENS DO PEDIDO ---
 print("Gerando e inserindo pedidos e seus itens (com valor_total calculado em Python)...")
-num_dias_simulacao = 1825 # 1 ano de dados
+num_dias_simulacao = 1825 # 5 anos de dados
 max_pedidos_por_dia = 10 # Mantido como máximo
 
 all_inserted_pedido_ids = []
