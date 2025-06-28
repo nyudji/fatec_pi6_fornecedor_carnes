@@ -2,60 +2,50 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
-import locale # Import the locale module
+import locale  # Importa módulo locale para formatação numérica
 
 def show():
     from driver.psycopg2_connect import PostgresConnect
 
     st.set_page_config(layout="wide", page_title="Dashboard de Vendas de Carnes")
 
-    # --- Set Locale for Brazilian Portuguese Number Formatting ---
+    # --- Configuração da Localização para pt_BR ---
     try:
-        # For Linux/macOS
-        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')  # Linux/macOS
     except locale.Error:
         try:
-            # For Windows
-            locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
+            locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')  # Windows
         except locale.Error:
-            st.warning("Could not set locale for Brazilian Portuguese. Number formatting may not be correct.")
-            # Fallback if locale setting fails, will use default formatting which might not be pt_BR
-            locale.setlocale(locale.LC_ALL, '') # Set to default locale, might be US style
-            st.info("Consider installing the 'pt_BR' locale on your system if formatting is incorrect.")
-
-
-    # --- Função para Carregar Dados (com cache para performance) ---
-    @st.cache_data(ttl=3600) # Armazena os dados em cache por 1 hora
+            st.warning("Não foi possível configurar locale pt_BR. Formatação pode ficar incorreta.")
+            locale.setlocale(locale.LC_ALL, '')  # Usa locale padrão
+    
+    # --- Função para carregar dados com cache ---
+    @st.cache_data(ttl=3600)
     def load_data_from_db(query, table_name="dados"):
-        """
-        Carrega dados do PostgreSQL usando PostgresConnect e retorna um DataFrame.
-        """
-        db_connection = PostgresConnect() # Cria uma nova instância de conexão
-        
+        db_connection = PostgresConnect()
         if db_connection.conn is None or db_connection.conn.closed:
-            st.error(f"Erro ao conectar ao banco de dados para carregar {table_name}. Verifique as configurações de conexão.")
-            return pd.DataFrame() # Retorna um DataFrame vazio em caso de erro
-
+            st.error(f"Erro ao conectar ao banco para carregar {table_name}.")
+            return pd.DataFrame()
         try:
             df = pd.read_sql(query, db_connection.conn)
             return df
         except Exception as e:
-            st.error(f"Erro ao executar a consulta para {table_name}: {e}")
+            st.error(f"Erro na consulta {table_name}: {e}")
             return pd.DataFrame()
         finally:
-            db_connection.close_connection() # Garante que a conexão seja fechada
+            db_connection.close_connection()
 
-    # --- Queries SQL para obter os dados ---
-    # 1. Pedidos e Itens de Pedido
+    # --- Queries com adição do id_produto em pedidos detalhes ---
     QUERY_PEDIDOS_DETALHES = """
     SELECT
         p.id_pedido,
         p.data_pedido,
         p.status AS status_pedido,
-        p.valor_total, -- This valor_total will be duplicated if a pedido has multiple items
+        p.valor_total,
         c.nome_cliente,
         c.tipo_cliente,
         ip.id_item_pedido,
+        ip.id_produto,  -- ADICIONADO para usar no cálculo do lucro
         prod.nome_produto,
         prod.tipo_corte,
         ip.quantidade,
@@ -68,7 +58,6 @@ def show():
     ORDER BY p.data_pedido;
     """
 
-    # 2. Clientes
     QUERY_CLIENTES = """
     SELECT
         id_cliente,
@@ -81,7 +70,6 @@ def show():
     FROM tb_cliente;
     """
 
-    # 3. Produtos
     QUERY_PRODUTOS = """
     SELECT
         id_produto,
@@ -94,7 +82,6 @@ def show():
     FROM tb_produto;
     """
 
-    # 4. Pagamentos
     QUERY_PAGAMENTOS = """
     SELECT
         pa.id_pagamento,
@@ -111,7 +98,6 @@ def show():
     ORDER BY pa.data_pagamento;
     """
 
-    # 5. Estoque (para visualização de níveis)
     QUERY_ESTOQUE = """
     SELECT
         e.id_estoque,
@@ -130,65 +116,106 @@ def show():
     """
 
     # --- Carrega os DataFrames ---
-
     df_pedidos_detalhes = load_data_from_db(QUERY_PEDIDOS_DETALHES, "pedidos e itens")
     df_clientes = load_data_from_db(QUERY_CLIENTES, "clientes")
     df_produtos = load_data_from_db(QUERY_PRODUTOS, "produtos")
     df_pagamentos = load_data_from_db(QUERY_PAGAMENTOS, "pagamentos")
     df_estoque = load_data_from_db(QUERY_ESTOQUE, "estoque")
 
-
     if (df_pedidos_detalhes.empty and
         df_clientes.empty and
         df_produtos.empty and
         df_pagamentos.empty and
         df_estoque.empty):
-        st.warning("Nenhum dado foi carregado do banco de dados. Verifique a conexão e se o banco foi populado.")
-        st.stop() # Para a execução do Streamlit se não há dados
+        st.warning("Nenhum dado foi carregado do banco. Verifique a conexão e população do banco.")
+        st.stop()
 
-
-    # --- Preparação de Dados Adicionais (se necessário) ---
-    # Pedidos: Garantir que datas são datetime e calcular o mês/ano
+    # --- Preparação dos dados ---
     if not df_pedidos_detalhes.empty:
         df_pedidos_detalhes['data_pedido'] = pd.to_datetime(df_pedidos_detalhes['data_pedido'])
         df_pedidos_detalhes['mes_ano_pedido'] = df_pedidos_detalhes['data_pedido'].dt.to_period('M').astype(str)
 
-    # Pagamentos: Garantir que datas são datetime
     if not df_pagamentos.empty:
         df_pagamentos['data_pagamento'] = pd.to_datetime(df_pagamentos['data_pagamento'])
         df_pagamentos['mes_ano_pagamento'] = df_pagamentos['data_pagamento'].dt.to_period('M').astype(str)
 
+    # --- Cálculo do Lucro ---
+    if not df_pedidos_detalhes.empty and not df_produtos.empty:
+        df_pedidos_detalhes = df_pedidos_detalhes.merge(
+            df_produtos[['id_produto', 'preco_compra']],
+            on='id_produto',
+            how='left'
+        )
+        df_pedidos_detalhes['lucro_item'] = df_pedidos_detalhes['quantidade'] * (
+            df_pedidos_detalhes['preco_unitario'] - df_pedidos_detalhes['preco_compra']
+        )
+        df_pedidos_detalhes['ano_pedido'] = df_pedidos_detalhes['data_pedido'].dt.year
+        lucro_anual = df_pedidos_detalhes.groupby('ano_pedido')['lucro_item'].sum().reset_index()
+        lucro_medio_anual = lucro_anual['lucro_item'].mean() if not lucro_anual.empty else 0
+        ano_atual = datetime.now().year
+        lucro_ano_atual = lucro_anual.loc[lucro_anual['ano_pedido'] == ano_atual, 'lucro_item'].sum() if ano_atual in lucro_anual['ano_pedido'].values else 0
+    else:
+        lucro_medio_anual = 0
+        lucro_ano_atual = 0
+        ano_atual = datetime.now().year
 
-    # --- Título do Dashboard ---
+    
+
+    # --- KPIs Gerais ---
     st.title("📊 Dashboard de Vendas de Carnes")
     st.markdown("Uma visão geral dos dados populados do sistema de gerenciamento de carnes.")
 
-
-    # --- KPIs Gerais ---
     st.subheader("📈 KPIs Gerais")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-    # *** CRITICAL FIX FOR total_vendas ***
-    # Sum valor_total only from unique orders to avoid duplication from joins
     if not df_pedidos_detalhes.empty:
         unique_pedidos_for_total = df_pedidos_detalhes.drop_duplicates(subset=['id_pedido'])
         total_vendas = unique_pedidos_for_total['valor_total'].sum()
     else:
         total_vendas = 0
-
     total_pedidos = df_pedidos_detalhes['id_pedido'].nunique() if not df_pedidos_detalhes.empty else 0
     media_valor_pedido = total_vendas / total_pedidos if total_pedidos > 0 else 0
     total_clientes = df_clientes['id_cliente'].nunique() if not df_clientes.empty else 0
 
+    # Cálculo do delta para o lucro do ano atual em relação à média
+    delta_lucro = lucro_ano_atual - lucro_medio_anual
+
+    # Texto para explicar se está acima ou abaixo da média
+    if delta_lucro < 0:
+        texto_delta = "Abaixo da média"
+        simbolo_delta = "▼"
+    else:
+        texto_delta = "Acima da média" if delta_lucro > 0 else "Na média"
+        simbolo_delta = ""
+        
+    def format_currency_br(value):
+        # Formata valores grandes em R$ 15,3M, R$ 1,2K, etc
+        if abs(value) >= 1_000_000:
+            return f"R$ {value/1_000_000:.1f}M"
+        elif abs(value) >= 1_000:
+            return f"R$ {value/1_000:.1f}K"
+        else:
+            return locale.currency(value, grouping=True, symbol='R$ ')
+    # Exibir KPIs com formatação aprimorada
     with col1:
-        st.metric("Total de Vendas", locale.currency(total_vendas, grouping=True, symbol='R$ '))
+        
+        st.metric("Total de Vendas", format_currency_br(total_vendas))
     with col2:
-        st.metric("Total de Pedidos", f"{total_pedidos:n}") # Use 'n' for locale-aware number formatting
+        st.metric("Total de Pedidos", f"{total_pedidos:n}")
     with col3:
         st.metric("Ticket Médio por Pedido", locale.currency(media_valor_pedido, grouping=True, symbol='R$ '))
     with col4:
-        st.metric("Total de Clientes", f"{total_clientes:n}") # Use 'n' for locale-aware number formatting
-
+        st.metric("Total de Clientes", f"{total_clientes:n}")
+    with col5:
+        st.metric("Vendas Média (Anual)", format_currency_br(lucro_medio_anual))
+    with col6:
+        cor_delta = "normal" if delta_lucro > 0 else "inverse" if delta_lucro < 0 else "off"
+        st.metric(
+            f"Vendas Ano {ano_atual}",
+            format_currency_br(lucro_ano_atual),
+            delta=f"{simbolo_delta} {format_currency_br(abs(delta_lucro))} ({texto_delta})",
+            delta_color=cor_delta
+        )
     st.markdown("---")
 
     # --- Visualizações ---
