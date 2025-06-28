@@ -104,131 +104,131 @@ class Manage_database(PostgresConnect): # Não precisa de 'as driver' aqui, já 
             return False
 
 
-    # --- Criação das tabelas do banco de dados ---
-    # Estes métodos agora chamam self.execute_query() que, por sua vez,
-    # usa o cursor da conexão persistente e faz commit se autocommit for True.
-    # Não é mais necessário criar/fechar cursor ou fazer commit/rollback aqui.
+    # # --- Criação das tabelas do banco de dados ---
+    # # Estes métodos agora chamam self.execute_query() que, por sua vez,
+    # # usa o cursor da conexão persistente e faz commit se autocommit for True.
+    # # Não é mais necessário criar/fechar cursor ou fazer commit/rollback aqui.
 
-    def create_table_tb_fornecedor(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_fornecedor (
-                id_fornecedor SERIAL PRIMARY KEY,
-                nome_fornecedor VARCHAR(255),
-                cnpj_fornecedor VARCHAR(18) UNIQUE,
-                telefone_fornecedor VARCHAR(20),
-                email_fornecedor VARCHAR(100),
-                endereco_fornecedor TEXT
-            );
-        '''
-        self.execute_query(query) 
-        # print("Tabela tb_fornecedor verificada/criada.") # Opcional: para debug
+    # def create_table_tb_fornecedor(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_fornecedor (
+    #             id_fornecedor SERIAL PRIMARY KEY,
+    #             nome_fornecedor VARCHAR(255),
+    #             cnpj_fornecedor VARCHAR(18) UNIQUE,
+    #             telefone_fornecedor VARCHAR(20),
+    #             email_fornecedor VARCHAR(100),
+    #             endereco_fornecedor TEXT
+    #         );
+    #     '''
+    #     self.execute_query(query) 
+    #     # print("Tabela tb_fornecedor verificada/criada.") # Opcional: para debug
 
-    def create_table_tb_produto(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_produto (
-                id_produto SERIAL PRIMARY KEY,
-                nome_produto VARCHAR(255),
-                tipo_corte VARCHAR(100),
-                unidade_medida VARCHAR(10),
-                preco_compra NUMERIC(10,2),
-                preco_venda NUMERIC(10,2),
-                id_fornecedor INTEGER REFERENCES tb_fornecedor(id_fornecedor) ON DELETE SET NULL
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_produto verificada/criada.")
+    # def create_table_tb_produto(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_produto (
+    #             id_produto SERIAL PRIMARY KEY,
+    #             nome_produto VARCHAR(255),
+    #             tipo_corte VARCHAR(100),
+    #             unidade_medida VARCHAR(10),
+    #             preco_compra NUMERIC(10,2),
+    #             preco_venda NUMERIC(10,2),
+    #             id_fornecedor INTEGER REFERENCES tb_fornecedor(id_fornecedor) ON DELETE SET NULL
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_produto verificada/criada.")
 
-    def create_table_tb_entrada(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_entrada (
-                id_entrada SERIAL PRIMARY KEY,
-                data_entrada DATE,
-                id_fornecedor INTEGER REFERENCES tb_fornecedor(id_fornecedor) ON DELETE SET NULL
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_entrada verificada/criada.")
+    # def create_table_tb_entrada(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_entrada (
+    #             id_entrada SERIAL PRIMARY KEY,
+    #             data_entrada DATE,
+    #             id_fornecedor INTEGER REFERENCES tb_fornecedor(id_fornecedor) ON DELETE SET NULL
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_entrada verificada/criada.")
 
-    def create_table_tb_produto_entrada(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_produto_entrada (
-                id_item_entrada SERIAL PRIMARY KEY,
-                id_entrada INTEGER REFERENCES tb_entrada(id_entrada) ON DELETE CASCADE,
-                id_produto INTEGER REFERENCES tb_produto(id_produto) ON DELETE CASCADE,
-                quantidade INTEGER,
-                preco_total NUMERIC(10,2),
-                validade DATE,
-                lote VARCHAR(50)
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_produto_entrada verificada/criada.")
+    # def create_table_tb_produto_entrada(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_produto_entrada (
+    #             id_item_entrada SERIAL PRIMARY KEY,
+    #             id_entrada INTEGER REFERENCES tb_entrada(id_entrada) ON DELETE CASCADE,
+    #             id_produto INTEGER REFERENCES tb_produto(id_produto) ON DELETE CASCADE,
+    #             quantidade INTEGER,
+    #             preco_total NUMERIC(10,2),
+    #             validade DATE,
+    #             lote VARCHAR(50)
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_produto_entrada verificada/criada.")
 
-    def create_table_tb_estoque(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_estoque (
-                id_estoque SERIAL PRIMARY KEY,
-                item_entrada INTEGER REFERENCES tb_produto_entrada(id_item_entrada) ON DELETE CASCADE,
-                quantidade_disponivel INTEGER,
-                localizacao VARCHAR(100)
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_estoque verificada/criada.")
+    # def create_table_tb_estoque(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_estoque (
+    #             id_estoque SERIAL PRIMARY KEY,
+    #             item_entrada INTEGER REFERENCES tb_produto_entrada(id_item_entrada) ON DELETE CASCADE,
+    #             quantidade_disponivel INTEGER,
+    #             localizacao VARCHAR(100)
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_estoque verificada/criada.")
 
-    def create_table_tb_cliente(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_cliente (
-                id_cliente SERIAL PRIMARY KEY,
-                nome_cliente VARCHAR(100),
-                cnpj_cliente VARCHAR(20),
-                endereco_cliente TEXT,
-                telefone_cliente VARCHAR(20),
-                email_cliente VARCHAR(100),
-                tipo_cliente VARCHAR(20)
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_cliente verificada/criada.")
+    # def create_table_tb_cliente(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_cliente (
+    #             id_cliente SERIAL PRIMARY KEY,
+    #             nome_cliente VARCHAR(100),
+    #             cnpj_cliente VARCHAR(20),
+    #             endereco_cliente TEXT,
+    #             telefone_cliente VARCHAR(20),
+    #             email_cliente VARCHAR(100),
+    #             tipo_cliente VARCHAR(20)
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_cliente verificada/criada.")
 
-    def create_table_tb_pedido(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_pedido (
-                id_pedido SERIAL PRIMARY KEY,
-                id_cliente INTEGER REFERENCES tb_cliente(id_cliente) ON DELETE SET NULL,
-                data_pedido DATE,
-                status VARCHAR(30),
-                valor_total NUMERIC(10,2)
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_pedido verificada/criada.")
+    # def create_table_tb_pedido(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_pedido (
+    #             id_pedido SERIAL PRIMARY KEY,
+    #             id_cliente INTEGER REFERENCES tb_cliente(id_cliente) ON DELETE SET NULL,
+    #             data_pedido DATE,
+    #             status VARCHAR(30),
+    #             valor_total NUMERIC(10,2)
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_pedido verificada/criada.")
 
-    def create_table_tb_item_pedido(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_item_pedido (
-                id_item_pedido SERIAL PRIMARY KEY,
-                id_pedido INTEGER REFERENCES tb_pedido(id_pedido) ON DELETE CASCADE,
-                id_produto INTEGER REFERENCES tb_produto(id_produto) ON DELETE SET NULL,
-                quantidade INTEGER,
-                unidade_medida VARCHAR(10),
-                preco_unitario NUMERIC(10,2)
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_item_pedido verificada/criada.")
+    # def create_table_tb_item_pedido(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_item_pedido (
+    #             id_item_pedido SERIAL PRIMARY KEY,
+    #             id_pedido INTEGER REFERENCES tb_pedido(id_pedido) ON DELETE CASCADE,
+    #             id_produto INTEGER REFERENCES tb_produto(id_produto) ON DELETE SET NULL,
+    #             quantidade INTEGER,
+    #             unidade_medida VARCHAR(10),
+    #             preco_unitario NUMERIC(10,2)
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_item_pedido verificada/criada.")
     
-    def create_table_tb_pagamento(self):
-        query = '''
-            CREATE TABLE IF NOT EXISTS tb_pagamento (
-                id_pagamento SERIAL PRIMARY KEY,
-                id_pedido INTEGER REFERENCES tb_pedido(id_pedido) ON DELETE CASCADE,
-                data_pagamento DATE,
-                lote_saida VARCHAR(50),
-                valor_pago NUMERIC(10,2),
-                metodo_pagamento VARCHAR(50),
-                status VARCHAR(30)
-            );
-        '''
-        self.execute_query(query)
-        # print("Tabela tb_pagamento verificada/criada.")
+    # def create_table_tb_pagamento(self):
+    #     query = '''
+    #         CREATE TABLE IF NOT EXISTS tb_pagamento (
+    #             id_pagamento SERIAL PRIMARY KEY,
+    #             id_pedido INTEGER REFERENCES tb_pedido(id_pedido) ON DELETE CASCADE,
+    #             data_pagamento DATE,
+    #             lote_saida VARCHAR(50),
+    #             valor_pago NUMERIC(10,2),
+    #             metodo_pagamento VARCHAR(50),
+    #             status VARCHAR(30)
+    #         );
+    #     '''
+    #     self.execute_query(query)
+    #     # print("Tabela tb_pagamento verificada/criada.")
     
