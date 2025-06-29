@@ -159,7 +159,33 @@ def show():
         lucro_ano_atual = 0
         ano_atual = datetime.now().year
 
-    
+    # --- KPI: Vendas Mensais (col6) ---
+    mes_atual = datetime.now().month
+    ano_atual = datetime.now().year
+    data_atual = datetime(ano_atual, mes_atual, 1)
+
+    # Define o mês anterior (lida com virada de ano)
+    data_mes_passado = data_atual - pd.DateOffset(months=1)
+    ano_passado = data_mes_passado.year
+    mes_passado = data_mes_passado.month
+
+    # Filtro e soma
+    venda_mes_atual = df_pedidos_detalhes[
+        (df_pedidos_detalhes['data_pedido'].dt.month == mes_atual) &
+        (df_pedidos_detalhes['data_pedido'].dt.year == ano_atual)
+    ].drop_duplicates('id_pedido')['valor_total'].sum()
+
+    venda_mes_passado = df_pedidos_detalhes[
+        (df_pedidos_detalhes['data_pedido'].dt.month == mes_passado) &
+        (df_pedidos_detalhes['data_pedido'].dt.year == ano_passado)
+    ].drop_duplicates('id_pedido')['valor_total'].sum()
+
+    # Cálculo do delta e exibição personalizada
+    delta_mensal = venda_mes_atual - venda_mes_passado
+    simbolo_mes = "▼" if delta_mensal < 0 else ""
+    texto_mes = "Abaixo do mês anterior" if delta_mensal < 0 else "Acima do mês anterior"
+    cor_mes = "inverse" if delta_mensal < 0 else "off"  # vermelho apenas se negativo
+
 
     # --- KPIs Gerais ---
     st.title("📊 Dashboard de Vendas de Carnes")
@@ -207,14 +233,14 @@ def show():
     with col4:
         st.metric("Total de Clientes", f"{total_clientes:n}")
     with col5:
-        st.metric("Vendas Média (Anual)", format_currency_br(lucro_medio_anual))
+        st.metric("Vendas (Média Anual)", format_currency_br(lucro_medio_anual))
+    # Exibir o KPI final
     with col6:
-        cor_delta = "normal" if delta_lucro > 0 else "inverse" if delta_lucro < 0 else "off"
         st.metric(
-            f"Vendas Ano {ano_atual}",
-            format_currency_br(lucro_ano_atual),
-            delta=f"{simbolo_delta} {format_currency_br(abs(delta_lucro))} ({texto_delta})",
-            delta_color=cor_delta
+            f"Vendas {data_atual.strftime('%B/%Y').capitalize()}",
+            format_currency_br(venda_mes_atual),
+            delta=f"{simbolo_mes} {format_currency_br(abs(delta_mensal))} ({texto_mes})",
+            delta_color=cor_mes
         )
     st.markdown("---")
 
