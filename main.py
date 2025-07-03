@@ -11,16 +11,26 @@ st.set_page_config(page_title="Mini ERP - Distribuidora de Carnes", layout="wide
 
 # Menu lateral para navegação entre as páginas/tabelas
 st.sidebar.title("Menu")
+# menu_options = [
+#     "Página Inicial",
+#     "Fornecedores",
+#     "Produtos",
+#     "Clientes",
+#     "Pedidos",
+#     "Relatórios",
+#     "Dashboard",
+#     "Configurações"
+# ]
+
 menu_options = [
     "Página Inicial",
     "Fornecedores",
     "Produtos",
     "Clientes",
-    "Pedidos",
     "Relatórios",
-    "Dashboard",
-    "Configurações"
+    "Dashboard"
 ]
+
 escolha = st.sidebar.radio("Navegação", menu_options)
 
 if escolha == "Página Inicial":

@@ -1,4 +1,7 @@
-# export_postgres_to_minio.py
+# --- IMPORTAÇÃO DE MÓDULOS ---
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from driver.psycopg2_connect import PostgresConnect
 from minio import Minio
@@ -19,24 +22,24 @@ pg = PostgresConnect()
 conn = pg.conn
 cursor = pg.get_cursor()
 
-minio_client = Minio(
-    endpoint='localhost:9000',
-    access_key='minioadmin',
-    secret_key='minioadmin',
-    secure=False  # True se estiver usando HTTPS
-)
-
-bucket = 'fornecedor-dados'
-
-# # === Conexão com o MinIO ===
 # minio_client = Minio(
-#     endpoint=os.getenv("MINIO_ENDPOINT"),
-#     access_key=os.getenv("MINIO_ACCESS_KEY"),
-#     secret_key=os.getenv("MINIO_SECRET_KEY"),
+#     endpoint='localhost:9000',
+#     access_key='minioadmin',
+#     secret_key='minioadmin',
 #     secure=False  # True se estiver usando HTTPS
 # )
 
-#bucket = os.getenv("MINIO_BUCKET")
+# bucket = 'fornecedor-dados'
+
+# === Conexão com o MinIO ===
+minio_client = Minio(
+    endpoint=os.getenv("MINIO_ENDPOINT"),
+    access_key=os.getenv("MINIO_ACCESS_KEY"),
+    secret_key=os.getenv("MINIO_SECRET_KEY"),
+    secure=False  # True se estiver usando HTTPS
+)
+
+bucket = os.getenv("MINIO_BUCKET")
 
 # Cria bucket, se necessário
 if not minio_client.bucket_exists(bucket):

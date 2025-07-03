@@ -1,9 +1,15 @@
+# --- IMPORTAÇÃO DE MÓDULOS ---
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import random
 from datetime import datetime, timedelta
 from faker import Faker
 from psycopg2.extras import execute_values
 import unicodedata
 import time
+
 
 # --- IMPORTAÇÃO DA SUA CLASSE DE CONEXÃO ---
 from driver.psycopg2_connect import PostgresConnect 
