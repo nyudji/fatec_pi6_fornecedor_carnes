@@ -13,11 +13,11 @@ class PostgresConnect:
     '''Classe responsável por gerenciar a conexão com o banco de dados usando psycopg2'''
 
     def __init__(self, autocommit=False): # Adicionando parâmetro autocommit
-        self.username = os.getenv("USER_DB")
-        self.password = os.getenv("PASSWORD_DB")
-        self.host = os.getenv("HOST_DB")
-        self.port = os.getenv("PORT_DB")
-        self.database = os.getenv("NAME_DB")
+        self.username = os.getenv("USER_BD")
+        self.password = os.getenv("PASSWORD_BD")
+        self.host = os.getenv("HOST_BD")
+        self.port = os.getenv("PORT_BD")
+        self.database = os.getenv("NAME_BD")
         
         self.conn = None # A conexão é inicializada como None
         self.autocommit = autocommit # Armazena o estado de autocommit
@@ -39,6 +39,7 @@ class PostgresConnect:
                 host=self.host,
                 port=port_int
             )
+            self.conn.set_client_encoding('LATIN1')
             self.conn.autocommit = self.autocommit # Aplica o autocommit configurado
             print("Conexão com o PostgreSQL estabelecida com sucesso!")
         except Exception as e:
