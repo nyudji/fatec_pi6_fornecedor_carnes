@@ -57,7 +57,7 @@ python -m venv .venv
 ### 5. Instale as dependências
 
 ```bash
-pip install -r requirements_2.txt
+pip install -r requirements.txt
 ```
 
 ### 6. Crie as tabelas
