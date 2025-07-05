@@ -17,7 +17,6 @@ st.sidebar.title("Menu")
 #     "Produtos",
 #     "Clientes",
 #     "Pedidos",
-#     "Relatórios",
 #     "Dashboard",
 #     "Configurações"
 # ]

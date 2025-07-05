@@ -121,6 +121,20 @@ def display_kpis(df_pedidos_detalhes, df_clientes):
     lucro_ano_atual = lucro_anual.loc[lucro_anual['ano_pedido'] == ano_atual, 'lucro_item'].sum() if ano_atual in \
                                                                                                      lucro_anual[
                                                                                                          'ano_pedido'].values else 0
+    #lucro semanal
+    today_date = datetime.now().date()
+
+    # Calculo de  e nício e fim da semana (segunda-feira a domingo) para a data atual do sistema
+    start_of_current_week = today_date - timedelta(days=today_date.weekday())
+    end_of_current_week = start_of_current_week + timedelta(days=6)
+    df_pedidos_apenas_data = df_pedidos_detalhes.copy()  # Criar uma cópia para garantir que não haja modificações no DF original
+    df_pedidos_apenas_data['data_pedido_date_only'] = df_pedidos_apenas_data['data_pedido'].dt.date
+
+    df_current_week = df_pedidos_apenas_data[
+        (df_pedidos_apenas_data['data_pedido_date_only'] >= start_of_current_week) &
+        (df_pedidos_apenas_data['data_pedido_date_only'] <= end_of_current_week)
+        ]
+    lucro_semanal = df_current_week['lucro_item'].sum()
 
     # Cálculo do delta para o lucro do ano atual em relação à média
     delta_lucro = lucro_ano_atual - lucro_medio_anual
@@ -147,13 +161,11 @@ def display_kpis(df_pedidos_detalhes, df_clientes):
     with col4:
         st.metric("Total de Clientes", f"{total_clientes:n}")
     with col5:
-        st.metric("Lucro Médio Anual", format_currency_br(lucro_medio_anual))
+        st.metric("Lucro Médio", format_currency_br(lucro_medio_anual))
     with col6:
         st.metric(
-            f"Lucro Ano {ano_atual}",
-            format_currency_br(lucro_ano_atual),
-            delta=f"{simbolo_delta} {format_currency_br(abs(delta_lucro))} ({texto_delta})",
-            delta_color=cor_delta
+            f"Lucro Semanal ({start_of_current_week.strftime('%d/%m')} - {end_of_current_week.strftime('%d/%m')})",
+            format_currency_br(lucro_semanal)
         )
     st.markdown("---")
 
@@ -1091,8 +1103,8 @@ def display_stock_analysis(df_estoque, df_produtos):
         hoje = pd.to_datetime(datetime.now().date())
         df_estoque_filtered['dias_para_vencer'] = (df_estoque_filtered['validade'] - hoje).dt.days
 
-        bins = [-float('inf'), 0, 30, 60, float('inf')]
-        labels = ['Vencido', 'Vence em até 30 dias', 'Vence em 30-60 dias', 'Vence em mais de 60 dias']
+        bins = [-float('inf'), 30, 60, float('inf')]
+        labels = [ 'Vence em até 30 dias', 'Vence em 30-60 dias', 'Vence em mais de 60 dias']
         # Usar df_estoque_filtered aqui para o corte
         df_estoque_filtered['status_validade'] = pd.cut(df_estoque_filtered['dias_para_vencer'], bins=bins,
                                                         labels=labels, right=False, ordered=False)
@@ -1108,7 +1120,7 @@ def display_stock_analysis(df_estoque, df_produtos):
         resumo_validade = resumo_validade.sort_values('status_validade')
 
         mapa_cores = {
-            'Vencido': '#d9534f',  # Vermelho
+
             'Vence em até 30 dias': '#f0ad4e',  # Laranja
             'Vence em 30-60 dias': '#5bc0de',  # Azul claro
             'Vence em mais de 60 dias': '#5cb85c'  # Verde
