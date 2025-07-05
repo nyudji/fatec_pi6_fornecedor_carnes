@@ -1,11 +1,13 @@
 # Base para rodar fora do código
+
 import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import subprocess
 import pandas as pd
 from io import BytesIO
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from datetime import datetime
 from pipeline.capture_cepea import get_cepea_dataframe
 from pipeline.capture_agro_gov import get_agro_gov_dataframes
 from minio import Minio
@@ -74,6 +76,8 @@ df1_agro_gov, df2_agro_gov, df3_agro_gov = get_agro_gov_dataframes()
 # Cria bucket, se necessário
 if not minio_client.bucket_exists(bucket):
     minio_client.make_bucket(bucket)
+
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 # Envia DataFrames para o MinIO
 if df is not None:

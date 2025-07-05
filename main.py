@@ -1,5 +1,8 @@
+# import warnings
+# warnings.filterwarnings("ignore")
+
 from models.database_psycopg_manager import Manage_database
-from frontend.pages import relatorios, dashboard
+from frontend.pages import relatorios, dashboard, configuracoes, relatorio_externo
 
 # Import Libs
 import streamlit as st
@@ -11,23 +14,15 @@ st.set_page_config(page_title="Mini ERP - Distribuidora de Carnes", layout="wide
 
 # Menu lateral para navegação entre as páginas/tabelas
 st.sidebar.title("Menu")
-# menu_options = [
-#     "Página Inicial",
-#     "Fornecedores",
-#     "Produtos",
-#     "Clientes",
-#     "Pedidos",
-#     "Dashboard",
-#     "Configurações"
-# ]
 
 menu_options = [
     "Página Inicial",
     "Fornecedores",
     "Produtos",
     "Clientes",
-    "Relatórios",
-    "Dashboard"
+    "Dashboard Interno",
+    "Relatorio Externo",
+    "Configurações"
 ]
 
 escolha = st.sidebar.radio("Navegação", menu_options)
@@ -85,14 +80,12 @@ elif escolha == "Clientes":
         db_manager
     )
 
-elif escolha == "Relatórios":
-    relatorios.show()
 
-elif escolha == "Dashboard":
+elif escolha == "Dashboard Interno":
     dashboard.show()
 
-elif escolha == "Pedidos":
-    st.info("Funcionalidade de Pedidos em desenvolvimento.")
+elif escolha == "Relatorio Externo":
+    relatorio_externo.show()
 
 elif escolha == "Configurações":
-    st.info("Funcionalidade de Configurações em desenvolvimento.")
+    configuracoes.show()
